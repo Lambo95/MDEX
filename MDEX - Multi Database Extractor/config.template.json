@@ -1,0 +1,14 @@
+{
+    "db_type": "ORACLE",
+    "host": "",
+    "port": 1521,
+    "service_name": "",
+    "database": "",
+    "user": "",
+    "query_folder": "queries",
+    "output_folder": "output",
+    "report_folder": "reports",
+    "sleep_seconds": 5,
+    "fetch_size": 1000,
+    "output_format": "CSV"
+}
