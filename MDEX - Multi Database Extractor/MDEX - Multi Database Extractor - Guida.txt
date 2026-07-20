@@ -73,6 +73,20 @@ MDEX ricerca automaticamente tutte le query:
 *.sql
 presenti nella cartella configurata e nelle relative sottocartelle.
 Non è necessario modificare il codice quando vengono aggiunte nuove query.
+
+N.B.Le query devono contenere controlli sulle date:
+--> es. Oracle
+SELECT *
+FROM Tabella
+WHERE DATA_EVENTO >= TO_DATE(:inizio,'YYYY-MM-DD HH24:MI:SS')
+AND DATA_EVENTO < TO_DATE(:fine,'YYYY-MM-DD HH24:MI:SS')
+
+--> es.SQL
+SELECT *
+FROM Tabella
+WHERE DATA_EVENTO >= @data
+AND DATA_EVENTO < @data
+
 Elenco Query
 Dal menu:
 Elenca query
