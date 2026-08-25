@@ -15,7 +15,8 @@ DEFAULT_CONFIG = {
     "report_folder": "reports",
     "sleep_seconds": 5,
     "fetch_size": 1000,
-    "output_format": "CSV"
+    "output_format": "CSV",
+    "extraction_mode": "SINGLE_FILE"
 }
 
 
@@ -167,9 +168,9 @@ def show_config(config):
     """
 
     print()
-    print("=" * 70)
+    print("=" * 30)
     print("CONFIGURAZIONE ATTUALE")
-    print("=" * 70)
+    print("=" * 30)
 
     for key, value in config.items():
 
@@ -177,7 +178,7 @@ def show_config(config):
             f"{key:<20} : {value}"
         )
 
-    print("=" * 70)
+    print("=" * 30)
 
 
 def update_config_value(

@@ -184,7 +184,7 @@ def show_query_details(
 ):
 
     print()
-    print("=" * 100)
+    print("=" * 80)
 
     for index, query in enumerate(
         queries,
@@ -200,4 +200,4 @@ def show_query_details(
             f"     {query['file']}"
         )
 
-    print("=" * 100)
+    print("=" * 80)

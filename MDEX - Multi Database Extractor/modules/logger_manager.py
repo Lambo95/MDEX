@@ -13,7 +13,7 @@ LOG_FILE = os.path.join(
 def log_separator(logger):
 
     logger.info(
-        "-" * 80
+        "-" * 60
     )
 
 def configure_logger():

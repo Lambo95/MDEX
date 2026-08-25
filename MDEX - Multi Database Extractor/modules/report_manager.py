@@ -110,7 +110,7 @@ def generate_txt_report(
         )
 
         file.write(
-            "-" * 80 + "\n"
+            "-" * 60 + "\n"
         )
 
         for result in results:
@@ -139,7 +139,7 @@ def generate_txt_report(
                 )
 
             file.write(
-                "-" * 80 + "\n"
+                "-" * 60 + "\n"
             )
 
         file.write("\n")
@@ -288,9 +288,9 @@ def print_summary(
 
     print()
 
-    print("=" * 90)
+    print("=" * 70)
     print("REPORT ESECUZIONE")
-    print("=" * 90)
+    print("=" * 70)
 
     print()
 
@@ -301,7 +301,7 @@ def print_summary(
         f"{'ESITO':10}"
     )
 
-    print("-" * 90)
+    print("-" * 70)
 
     for result in results:
 
@@ -312,7 +312,7 @@ def print_summary(
             f"{result['status']:10}"
         )
 
-    print("-" * 90)
+    print("-" * 70)
 
     print(
         f"Query Totali : "
@@ -339,7 +339,7 @@ def print_summary(
         f"{total_elapsed} sec"
     )
 
-    print("=" * 90)
+    print("=" * 70)
 
 def create_reports(
     config,

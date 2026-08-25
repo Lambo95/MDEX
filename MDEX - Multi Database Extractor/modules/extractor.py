@@ -2,6 +2,7 @@ import os
 import csv
 import time
 import traceback
+from datetime import datetime
 
 from openpyxl import Workbook
 
@@ -11,15 +12,23 @@ from modules.logger_manager import (
 
 logger = configure_logger()
 
-
 def get_output_file(
     output_folder,
     query_name,
-    day_label,
-    output_format
+    output_format,
+    extraction_mode,
+    day_label=None,
+    start_label=None,
+    end_label=None
 ):
     """
-    Costruisce il nome del file output.
+    Costruisce il nome del file di output.
+
+    DAILY_FILES
+        FILE_IN_20260301.csv
+
+    SINGLE_FILE
+        FILE_IN_20260301_20260331.csv
     """
 
     query_dir = os.path.join(
@@ -34,11 +43,26 @@ def get_output_file(
 
     extension = output_format.lower()
 
+    if extraction_mode == "DAILY_FILES":
+
+        filename = (
+            f"{query_name}_{day_label}."
+            f"{extension}"
+        )
+
+    else:
+
+        filename = (
+            f"{query_name}_"
+            f"{start_label}_"
+            f"{end_label}."
+            f"{extension}"
+        )
+
     return os.path.join(
         query_dir,
-        f"{query_name}_{day_label}.{extension}"
+        filename
     )
-
 
 def read_sql_file(sql_file):
     """
@@ -52,7 +76,6 @@ def read_sql_file(sql_file):
     ) as file:
 
         return file.read()
-
 
 def execute_query(
     conn,
@@ -102,15 +125,11 @@ def execute_query(
 
         raise
 
-
 def export_csv(
     cursor,
     output_file,
     fetch_size
 ):
-    """
-    Esporta in CSV.
-    """
 
     total_rows = 0
 
@@ -123,14 +142,16 @@ def export_csv(
         output_file,
         "w",
         newline="",
-        encoding="utf-8"
+        encoding="utf-8-sig"
     ) as csv_file:
 
         writer = csv.writer(
             csv_file
         )
 
-        writer.writerow(columns)
+        writer.writerow(
+            columns
+        )
 
         while True:
 
@@ -141,21 +162,19 @@ def export_csv(
             if not rows:
                 break
 
-            writer.writerows(rows)
+            writer.writerows(
+                rows
+            )
 
             total_rows += len(rows)
 
     return total_rows
-
 
 def export_xlsx(
     cursor,
     output_file,
     fetch_size
 ):
-    """
-    Esporta in XLSX.
-    """
 
     wb = Workbook()
 
@@ -183,14 +202,17 @@ def export_xlsx(
 
         for row in rows:
 
-            ws.append(list(row))
+            ws.append(
+                list(row)
+            )
 
         total_rows += len(rows)
+
+    ws.auto_filter.ref = ws.dimensions
 
     wb.save(output_file)
 
     return total_rows
-
 
 def export_data(
     cursor,
@@ -198,30 +220,56 @@ def export_data(
     output_format,
     fetch_size
 ):
+    """
+    Esporta i dati nel formato richiesto.
 
-    if output_format.upper() == "CSV":
+    Formati supportati:
+    - CSV
+    - XLSX
+    """
+
+    output_format = (
+        output_format.upper().strip()
+    )
+
+    logger.info(
+        f"Export file: {output_file}"
+    )
+
+    logger.info(
+        f"Formato export: {output_format}"
+    )
+
+    if output_format == "CSV":
 
         return export_csv(
-            cursor,
-            output_file,
-            fetch_size
+            cursor=cursor,
+            output_file=output_file,
+            fetch_size=fetch_size
         )
 
-    elif output_format.upper() == "XLSX":
+    elif output_format == "XLSX":
 
         return export_xlsx(
-            cursor,
-            output_file,
-            fetch_size
+            cursor=cursor,
+            output_file=output_file,
+            fetch_size=fetch_size
         )
 
     else:
 
-        raise ValueError(
+        error_message = (
             f"Formato non supportato: "
             f"{output_format}"
         )
 
+        logger.error(
+            error_message
+        )
+
+        raise ValueError(
+            error_message
+        )
 
 def extract_query(
     conn,
@@ -239,11 +287,34 @@ def extract_query(
     start_time = time.perf_counter()
 
     output_file = get_output_file(
-        config["output_folder"],
-        query["name"],
-        day_label,
-        config["output_format"]
+    output_folder=config["output_folder"],
+    query_name=query["name"],
+    output_format=config["output_format"],
+    extraction_mode=config["extraction_mode"],
+    day_label=day_label,
+    start_label=datetime.strptime(start_date,"%Y-%m-%d %H:%M:%S").strftime("%Y%m%d_%H%M%S"),
+    end_label=datetime.strptime(end_date,"%Y-%m-%d %H:%M:%S").strftime("%Y%m%d_%H%M%S")
+    # start_label=start_date[:10].replace("-", ""),
+    # end_label=end_date[:10].replace("-", "")
     )
+
+
+    if os.path.exists(output_file):
+
+        logger.info(
+            f"[SKIP] {query['name']} "
+            f"-> file già presente "
+            f"({output_file})"
+        )
+
+        return {
+            "name": query["name"],
+            "status": "SKIPPED",
+            "rows": 0,
+            "elapsed": 0,
+            "file": output_file,
+            "error": ""
+        }
 
     logger.info(
         f"Avvio query {query['name']}"
@@ -302,9 +373,7 @@ def extract_query(
             f"{query['name']}"
         )
 
-        if os.path.exists(
-            output_file
-        ):
+        if os.path.exists(output_file):
 
             try:
 
@@ -336,7 +405,6 @@ def extract_query(
 
             cursor.close()
 
-
 def run_extraction(
     conn,
     config,
@@ -354,7 +422,7 @@ def run_extraction(
     total_start = time.perf_counter()
 
     logger.info(
-        "=" * 80
+        "=" * 20
     )
 
     logger.info(
@@ -362,7 +430,7 @@ def run_extraction(
     )
 
     logger.info(
-        "=" * 80
+        "=" * 20
     )
 
     for query in selected_queries:
@@ -391,7 +459,7 @@ def run_extraction(
     )
 
     logger.info(
-        "=" * 80
+        "=" * 20
     )
 
     logger.info(
@@ -400,7 +468,7 @@ def run_extraction(
     )
 
     logger.info(
-        "=" * 80
+        "=" * 20
     )
 
     return {

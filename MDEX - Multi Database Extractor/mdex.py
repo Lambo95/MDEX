@@ -1,5 +1,9 @@
-from datetime import datetime
 from getpass import getpass
+from datetime import (
+    datetime,
+    timedelta
+)
+import os
 
 from modules.config_manager import (
     load_config,
@@ -30,18 +34,21 @@ from modules.logger_manager import (
     configure_logger
 )
 
+from modules.csv_merger import (
+    consolidate_daily_files
+)
+
 logger = configure_logger()
 
 
 selected_queries = []
 
-
 def configure_database(config):
 
     print()
-    print("=" * 60)
+    print("=" * 30)
     print("CONFIGURAZIONE DATABASE")
-    print("=" * 60)
+    print("=" * 30)
 
     db_choice = input(
         "Database [1=Oracle, 2=SQL Server]: "
@@ -122,7 +129,6 @@ def configure_database(config):
         "[OK] Configurazione salvata"
     )
 
-
 def execute_test(config):
 
     print()
@@ -167,7 +173,6 @@ def execute_test(config):
             result["error"]
         )
 
-
 def choose_queries(config):
 
     global selected_queries
@@ -195,6 +200,42 @@ def choose_queries(config):
 
         print(ex)
 
+def choose_extraction_mode(config):
+
+    print()
+    print("Modalità estrazione")
+    print()
+
+    print("1 - File unico")
+    print(
+        "2 - File giornalieri "
+        "(consigliato)"
+    )
+
+    choice = input(
+        "Scelta: "
+    ).strip()
+
+    if choice == "2":
+
+        config["extraction_mode"] = (
+            "DAILY_FILES"
+        )
+
+    else:
+
+        config["extraction_mode"] = (
+            "SINGLE_FILE"
+        )
+
+    save_config(config)
+
+    print()
+
+    print(
+        f"Modalità selezionata: "
+        f"{config['extraction_mode']}"
+    )
 
 def run_batch(config):
 
@@ -203,22 +244,26 @@ def run_batch(config):
     if not selected_queries:
 
         print()
-
-        print(
-            "Nessuna query selezionata."
-        )
-
+        print("Nessuna query selezionata.")
         return
 
     start_date = input(
-        "Data/Ora inizio "
-        "(YYYY-MM-DD HH:MM:SS): "
+        "Data/Ora inizio (YYYY-MM-DD HH:MM:SS): "
     ).strip()
 
     end_date = input(
-        "Data/Ora fine "
-        "(YYYY-MM-DD HH:MM:SS): "
+        "Data/Ora fine (YYYY-MM-DD HH:MM:SS): "
     ).strip()
+
+    start_dt = datetime.strptime(
+        start_date,
+        "%Y-%m-%d %H:%M:%S"
+    )
+
+    end_dt = datetime.strptime(
+        end_date,
+        "%Y-%m-%d %H:%M:%S"
+    )
 
     password = getpass(
         "Password: "
@@ -226,6 +271,8 @@ def run_batch(config):
 
     config["password"] = password
 
+    print()
+    
     test_result = test_connection(
         config
     )
@@ -233,7 +280,6 @@ def run_batch(config):
     if not test_result["success"]:
 
         print()
-
         print(
             "Test connessione fallito."
         )
@@ -256,21 +302,131 @@ def run_batch(config):
             config
         )
 
-        day_label = datetime.now(
-        ).strftime(
-            "%Y%m%d"
+        mode = (
+            config.get(
+                "extraction_mode",
+                "SINGLE_FILE"
+            )
+            .strip()
+            .upper()
         )
 
-        extraction_result = (
-            run_extraction(
-                conn=conn,
-                config=config,
-                selected_queries=selected_queries,
-                start_date=start_date,
-                end_date=end_date,
-                day_label=day_label
+        if mode == "SINGLE_FILE":
+
+            logger.info(
+                f"Modalità estrazione: {mode}"
             )
-        )
+
+            day_label = (
+                start_dt.strftime(
+                    "%Y%m%d_%H%M%S"
+                )
+                + "_"
+                + end_dt.strftime(
+                    "%Y%m%d_%H%M%S"
+                )
+            )
+
+            extraction_result = (
+                run_extraction(
+                    conn=conn,
+                    config=config,
+                    selected_queries=selected_queries,
+                    start_date=start_date,
+                    end_date=end_date,
+                    day_label=day_label
+                )
+            )
+
+        else:
+
+            results = []
+
+            total_elapsed = 0
+
+            current_day = start_dt
+
+            while current_day < end_dt:
+
+                next_day = (
+                    current_day +
+                    timedelta(days=1)
+                )
+
+                day_label = (
+                    current_day.strftime(
+                        "%Y%m%d"
+                    )
+                )
+
+                print()
+                print(
+                    "=" * 30
+                )
+
+                print(
+                    f"Elaborazione giorno "
+                    f"{day_label}"
+                )
+
+                print(
+                    f"Periodo:"
+                )
+
+                print(
+                    current_day.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                )
+
+                print(
+                    next_day.strftime(
+                        "%Y-%m-%d %H:%M:%S"
+                    )
+                )
+
+                print(
+                    "=" * 30
+                )
+
+                daily_result = (
+                    run_extraction(
+                        conn=conn,
+                        config=config,
+                        selected_queries=selected_queries,
+                        start_date=current_day.strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                        end_date=next_day.strftime(
+                            "%Y-%m-%d %H:%M:%S"
+                        ),
+                        day_label=day_label
+                    )
+                )
+
+                results.extend(
+                    daily_result[
+                        "results"
+                    ]
+                )
+
+                total_elapsed += (
+                    daily_result[
+                        "total_elapsed"
+                    ]
+                )
+
+                current_day = next_day
+
+            extraction_result = {
+
+                "results": results,
+
+                "total_elapsed": round(
+                    total_elapsed,
+                    2
+                )
+            }
 
         report_info = (
             create_reports(
@@ -284,7 +440,7 @@ def run_batch(config):
         print()
 
         print(
-            "Report TXT :"
+            "Report TXT:"
         )
 
         print(
@@ -296,7 +452,7 @@ def run_batch(config):
         print()
 
         print(
-            "Report XLSX :"
+            "Report XLSX:"
         )
 
         print(
@@ -323,11 +479,10 @@ def run_batch(config):
                 "Connessione chiusa"
             )
 
-
 def main():
 
     logger.info(
-        "=" * 80
+        "=" * 60
     )
 
     logger.info(
@@ -335,7 +490,7 @@ def main():
     )
 
     logger.info(
-        "=" * 80
+        "=" * 60
     )
 
     config = load_config()
@@ -343,12 +498,12 @@ def main():
     while True:
 
         print()
-        print("=" * 60)
+        print("=" * 30)
         print(
             "MDEX - "
             "Multi Database Extractor"
         )
-        print("=" * 60)
+        print("=" * 30)
 
         print(
             "Database :",
@@ -383,11 +538,19 @@ def main():
         )
 
         print(
-            "6 - Esegui estrazione"
+            "6 - Modalità estrazione"
         )
 
         print(
-            "7 - Esci"
+            "7 - Esegui estrazione"
+        )
+
+        print(
+            "8 - Consolida CSV"
+        )
+
+        print(
+            "9 - Esci"
         )
 
         print()
@@ -444,11 +607,60 @@ def main():
 
         elif choice == "6":
 
+            choose_extraction_mode(
+                config
+            )
+
+            config = load_config()
+
+        elif choice == "7":
+
+            config = load_config()
+
             run_batch(
                 config
             )
 
-        elif choice == "7":
+        elif choice == "8":
+
+            query_name = input(
+                "Nome query: "
+            )
+
+            query_folder = os.path.join(
+                config["output_folder"],
+                query_name
+            )
+
+            if not os.path.exists(
+                query_folder
+            ):
+
+                print()
+
+                print(
+                    f"Cartella non trovata: "
+                    f"{query_folder}"
+                )
+
+            else:
+
+                files = consolidate_daily_files(
+                    query_folder
+                )
+
+                print()
+
+                print(
+                    "File generati:"
+                )
+
+                for file in files:
+
+                    print(file)
+
+
+        elif choice == "9":
 
             logger.info(
                 "Uscita applicazione"

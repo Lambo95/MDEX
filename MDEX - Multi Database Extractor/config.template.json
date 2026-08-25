@@ -10,5 +10,6 @@
     "report_folder": "reports",
     "sleep_seconds": 5,
     "fetch_size": 1000,
-    "output_format": "CSV"
+    "output_format": "CSV",
+    "extraction_mode": "DAILY_FILES"
 }

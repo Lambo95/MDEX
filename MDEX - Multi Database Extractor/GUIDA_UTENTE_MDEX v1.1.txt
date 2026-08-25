@@ -1,0 +1,426 @@
+MDEX - Multi Database Extractor
+
+Guida Utente
+
+Versione: 1.1
+
+------------------------------------------------------------
+DESCRIZIONE
+------------------------------------------------------------
+
+MDEX (Multi Database Extractor) è uno strumento Python che
+consente di:
+
+- connettersi a Oracle o Microsoft SQL Server;
+- eseguire una o più query SQL presenti su file;
+- esportare i risultati in formato CSV o XLSX;
+- generare report di esecuzione;
+- registrare log dettagliati delle operazioni effettuate;
+- eseguire estrazioni giornaliere automatiche;
+- evitare riesecuzioni tramite controllo file esistenti;
+- consolidare file CSV generati in più intervalli.
+
+------------------------------------------------------------
+REQUISITI
+------------------------------------------------------------
+
+Python
+
+Verificare che Python sia installato:
+
+python --version
+
+Versione consigliata:
+
+Python 3.11 o superiore
+
+------------------------------------------------------------
+INSTALLAZIONE
+------------------------------------------------------------
+
+Creare il Virtual Environment
+
+python -m venv .venv
+
+Windows
+
+.venv\Scripts\activate
+
+Linux
+
+source .venv/bin/activate
+
+Installare i package
+
+pip install -r requirements.txt
+
+------------------------------------------------------------
+STRUTTURA CARTELLE
+------------------------------------------------------------
+
+Al primo avvio vengono create automaticamente:
+
+config.json
+
+queries
+├── oracle
+└── sqlserver
+
+output
+reports
+logs
+
+------------------------------------------------------------
+AVVIO APPLICAZIONE
+------------------------------------------------------------
+
+python mdex.py
+
+------------------------------------------------------------
+CONFIGURAZIONE DATABASE
+------------------------------------------------------------
+
+Menu:
+
+2 - Configura connessione
+
+------------------------------------------------------------
+CONFIGURAZIONE ORACLE
+------------------------------------------------------------
+
+Database      : Oracle
+Host          : oracle-server
+Porta         : 1521
+Service Name  : ORCL
+Utente        : export_user
+
+------------------------------------------------------------
+CONFIGURAZIONE SQL SERVER
+------------------------------------------------------------
+
+Database      : SQL Server
+Host          : sqlserver01
+Porta         : 1433
+Database Name : DWH
+Utente        : export_user
+
+------------------------------------------------------------
+PASSWORD
+------------------------------------------------------------
+
+Per motivi di sicurezza la password:
+
+- non viene salvata nel file config.json;
+- viene richiesta ad ogni esecuzione.
+
+------------------------------------------------------------
+POSIZIONAMENTO QUERY SQL
+------------------------------------------------------------
+
+Le query devono essere salvate in:
+
+queries
+
+oppure
+
+queries/oracle
+queries/sqlserver
+
+------------------------------------------------------------
+AUTODISCOVERY QUERY
+------------------------------------------------------------
+
+MDEX ricerca automaticamente tutte le query:
+
+*.sql
+
+presenti nella cartella configurata e nelle relative
+sottocartelle.
+
+Non è necessario modificare il codice quando vengono aggiunte
+nuove query.
+
+------------------------------------------------------------
+PARAMETRI DATA
+------------------------------------------------------------
+
+Le query devono contenere i parametri:
+
+Oracle
+
+SELECT *
+FROM TAB_TEST
+WHERE DATA_EVENTO >= TO_DATE(:inizio,'YYYY-MM-DD HH24:MI:SS')
+AND DATA_EVENTO < TO_DATE(:fine,'YYYY-MM-DD HH24:MI:SS')
+
+SQL Server
+
+SELECT *
+FROM TAB_TEST
+WHERE DATA_EVENTO >= ?
+AND DATA_EVENTO < ?
+
+------------------------------------------------------------
+ELENCO QUERY
+------------------------------------------------------------
+
+Menu:
+
+4 - Elenca query
+
+Vengono mostrate tutte le query trovate.
+
+------------------------------------------------------------
+SELEZIONE QUERY
+------------------------------------------------------------
+
+Menu:
+
+5 - Seleziona query
+
+Tutte:
+
+ALL
+
+Specifiche:
+
+1,3,5
+
+Intervallo:
+
+1-4
+
+Intervallo misto:
+
+1,3-5,8
+
+------------------------------------------------------------
+TEST CONNESSIONE
+------------------------------------------------------------
+
+Menu:
+
+3 - Test connessione
+
+Verifica:
+
+- raggiungibilità database
+- credenziali
+- versione DB
+- data database
+
+Esempio:
+
+[OK] Connessione riuscita
+
+Versione DB:
+Oracle Database 19c
+
+Data DB:
+2026-03-26 10:15:22
+
+------------------------------------------------------------
+MODALITA' ESTRAZIONE
+------------------------------------------------------------
+
+Menu:
+
+6 - Modalità estrazione
+
+1 - File unico
+2 - File giornalieri
+
+------------------------------------------------------------
+MODALITA' FILE UNICO
+------------------------------------------------------------
+
+Viene eseguita una sola query sull'intero periodo.
+
+Esempio:
+
+Inizio:
+2026-08-23 06:00:00
+
+Fine:
+2026-08-23 12:00:00
+
+Output:
+
+AWB_IN_20260823_060000_20260823_120000.csv
+
+------------------------------------------------------------
+MODALITA' FILE GIORNALIERI
+------------------------------------------------------------
+
+Per ogni giorno viene eseguita una query separata.
+
+Esempio:
+
+Periodo:
+
+2026-08-21 06:00:00
+2026-08-24 06:00:00
+
+Output:
+
+AWB_IN_20260821.csv
+AWB_IN_20260822.csv
+AWB_IN_20260823.csv
+
+Tra una query e la successiva viene rispettato il parametro:
+
+sleep_seconds
+
+------------------------------------------------------------
+SKIP AUTOMATICO
+------------------------------------------------------------
+
+Se il file esiste già:
+
+la query NON viene rieseguita.
+
+Nel report verrà visualizzato:
+
+SKIPPED
+
+Questo permette di riprendere facilmente
+estrazioni interrotte.
+
+------------------------------------------------------------
+OUTPUT CSV
+------------------------------------------------------------
+
+output/NOME_QUERY/
+
+NOME_QUERY_20260823.csv
+
+oppure
+
+NOME_QUERY_20260823_060000_20260823_120000.csv
+
+------------------------------------------------------------
+OUTPUT XLSX
+------------------------------------------------------------
+
+output/NOME_QUERY/
+
+NOME_QUERY_20260823.xlsx
+
+oppure
+
+NOME_QUERY_20260823_060000_20260823_120000.xlsx
+
+------------------------------------------------------------
+CONSOLIDAMENTO CSV
+------------------------------------------------------------
+
+Menu:
+
+8 - Consolida CSV
+
+Permette di unire più file CSV appartenenti
+alla stessa query.
+
+Esempio:
+
+AWB_IN_20260823_060000_20260823_120000.csv
+
+AWB_IN_20260823_120000_20260823_180000.csv
+
+AWB_IN_20260823_180000_20260824_000000.csv
+
+Vengono consolidati in:
+
+AWB_IN_20260823.csv
+
+Gli header vengono mantenuti una sola volta.
+
+------------------------------------------------------------
+LOG APPLICATIVO
+------------------------------------------------------------
+
+logs/execution.log
+
+Esempio:
+
+INFO Avvio applicazione
+INFO Connessione Oracle OK
+INFO Avvio query AWB_IN
+INFO Query completata
+
+------------------------------------------------------------
+REPORT FINALE
+------------------------------------------------------------
+
+reports/report_YYYYMMDD_HHMMSS.txt
+
+reports/report_YYYYMMDD_HHMMSS.xlsx
+
+------------------------------------------------------------
+CONTENUTO REPORT
+------------------------------------------------------------
+
+- nome query
+- righe estratte
+- durata
+- esito
+- eventuale errore
+
+Esempio
+
+QUERY        RIGHE      TEMPO      ESITO
+
+AWB_IN       125000     15.2 sec   OK
+AWB_OUT      124500     14.9 sec   OK
+CVD_IN            0      0.4 sec   KO
+
+------------------------------------------------------------
+RISOLUZIONE PROBLEMI
+------------------------------------------------------------
+
+Errore Oracle
+
+Verificare:
+
+- Host
+- Porta
+- Service Name
+- Username
+- Password
+
+Errore SQL Server
+
+Verificare:
+
+- Host
+- Porta
+- Database
+- Username
+- Password
+
+Nessuna Query Trovata
+
+Verificare la presenza di file:
+
+*.sql
+
+nella cartella configurata.
+
+Errore Esportazione
+
+Verificare:
+
+- permessi di scrittura
+- spazio disco
+- file aperti in Excel
+
+------------------------------------------------------------
+APPLICAZIONE
+------------------------------------------------------------
+
+MDEX - Multi Database Extractor
+
+Versione 1.1
+
+Realizzato da:
+Lambo
