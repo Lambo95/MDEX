@@ -35,7 +35,8 @@ from modules.logger_manager import (
 )
 
 from modules.csv_merger import (
-    consolidate_daily_files
+    consolidate_daily_files,
+    discover_output_queries    
 )
 
 logger = configure_logger()
@@ -122,7 +123,10 @@ def configure_database(config):
             output_choice
         )
 
-    save_config(config)
+    save_config(
+        config,
+        show_message=True
+    )
 
     print()
     print(
@@ -198,6 +202,10 @@ def choose_queries(config):
 
     except Exception as ex:
 
+        logger.exception(
+            "Errore selezione query"
+        )
+
         print(ex)
 
 def choose_extraction_mode(config):
@@ -206,10 +214,13 @@ def choose_extraction_mode(config):
     print("Modalità estrazione")
     print()
 
-    print("1 - File unico")
+    print("1 - File unico"
+          "(consigliato per query pesanti, inserendo intervallo di tempo ridotto)"
+    )
+
     print(
         "2 - File giornalieri "
-        "(consigliato)"
+        "(consigliato per query leggere)"
     )
 
     choice = input(
@@ -228,7 +239,10 @@ def choose_extraction_mode(config):
             "SINGLE_FILE"
         )
 
-    save_config(config)
+    save_config(
+        config,
+        show_message=True
+    )
 
     print()
 
@@ -245,6 +259,7 @@ def run_batch(config):
 
         print()
         print("Nessuna query selezionata.")
+
         return
 
     start_date = input(
@@ -271,25 +286,6 @@ def run_batch(config):
 
     config["password"] = password
 
-    print()
-    
-    test_result = test_connection(
-        config
-    )
-
-    if not test_result["success"]:
-
-        print()
-        print(
-            "Test connessione fallito."
-        )
-
-        print(
-            test_result["error"]
-        )
-
-        return
-
     conn = None
 
     try:
@@ -311,11 +307,11 @@ def run_batch(config):
             .upper()
         )
 
-        if mode == "SINGLE_FILE":
+        logger.info(
+            f"Modalità estrazione: {mode}"
+        )
 
-            logger.info(
-                f"Modalità estrazione: {mode}"
-            )
+        if mode == "SINGLE_FILE":
 
             day_label = (
                 start_dt.strftime(
@@ -348,9 +344,10 @@ def run_batch(config):
 
             while current_day < end_dt:
 
-                next_day = (
+                next_day = min(
                     current_day +
-                    timedelta(days=1)
+                    timedelta(days=1),
+                    end_dt
                 )
 
                 day_label = (
@@ -360,9 +357,7 @@ def run_batch(config):
                 )
 
                 print()
-                print(
-                    "=" * 30
-                )
+                print("=" * 30)
 
                 print(
                     f"Elaborazione giorno "
@@ -370,7 +365,7 @@ def run_batch(config):
                 )
 
                 print(
-                    f"Periodo:"
+                    "Periodo:"
                 )
 
                 print(
@@ -385,9 +380,7 @@ def run_batch(config):
                     )
                 )
 
-                print(
-                    "=" * 30
-                )
+                print("=" * 30)
 
                 daily_result = (
                     run_extraction(
@@ -405,23 +398,17 @@ def run_batch(config):
                 )
 
                 results.extend(
-                    daily_result[
-                        "results"
-                    ]
+                    daily_result["results"]
                 )
 
                 total_elapsed += (
-                    daily_result[
-                        "total_elapsed"
-                    ]
+                    daily_result["total_elapsed"]
                 )
 
                 current_day = next_day
 
             extraction_result = {
-
                 "results": results,
-
                 "total_elapsed": round(
                     total_elapsed,
                     2
@@ -438,11 +425,7 @@ def run_batch(config):
         )
 
         print()
-
-        print(
-            "Report TXT:"
-        )
-
+        print("Report TXT:")
         print(
             report_info[
                 "txt_report"
@@ -450,24 +433,29 @@ def run_batch(config):
         )
 
         print()
-
-        print(
-            "Report XLSX:"
-        )
-
+        print("Report XLSX:")
         print(
             report_info[
                 "xlsx_report"
             ]
         )
 
-    except Exception as ex:
+    except KeyboardInterrupt:
+
+        logger.warning(
+            "Estrazione interrotta dall'utente"
+        )
+
+        print()
+        print(
+            "Interruzione richiesta dall'utente."
+        )
+
+    except Exception:
 
         logger.exception(
             "Errore batch"
         )
-
-        print(ex)
 
     finally:
 
@@ -623,42 +611,72 @@ def main():
 
         elif choice == "8":
 
-            query_name = input(
-                "Nome query: "
-            )
-
-            query_folder = os.path.join(
-                config["output_folder"],
-                query_name
-            )
-
-            if not os.path.exists(
-                query_folder
+            if (
+                config.get(
+                    "output_format",
+                    "CSV"
+                )
+                .strip()
+                .upper()
+                != "CSV"
             ):
 
                 print()
 
                 print(
-                    f"Cartella non trovata: "
-                    f"{query_folder}"
+                    "Il consolidamento è attualmente "
+                    "supportato solo per file CSV."
                 )
 
             else:
 
-                files = consolidate_daily_files(
-                    query_folder
+                output_queries = (
+                    discover_output_queries(
+                        config["output_folder"]
+                    )
                 )
 
-                print()
+                if not output_queries:
 
-                print(
-                    "File generati:"
-                )
+                    print()
 
-                for file in files:
+                    print(
+                        "Nessuna cartella output trovata."
+                    )
 
-                    print(file)
+                else:
 
+                    selected = select_queries(
+                        output_queries
+                    )
+
+                    for query in selected:
+
+                        files = consolidate_daily_files(
+                            query["folder"]
+                        )
+
+                        print()
+
+                        print(
+                            f"Query: {query['name']}"
+                        )
+
+                        if not files:
+
+                            print(
+                                "Nessun file da consolidare."
+                            )
+
+                        else:
+
+                            print(
+                                "File generati:"
+                            )
+
+                            for file in files:
+
+                                print(file)
 
         elif choice == "9":
 
@@ -679,4 +697,24 @@ def main():
 
 if __name__ == "__main__":
 
-    main()
+    try:
+
+        main()
+
+    except KeyboardInterrupt:
+
+        print()
+
+        print(
+            "Interruzione richiesta dall'utente."
+        )
+
+        logger.info(
+            "Applicazione interrotta dall'utente"
+        )
+
+    except Exception:
+
+        logger.exception(
+            "Errore non gestito"
+        )

@@ -78,7 +78,6 @@ def parse_selection(selection, total_items):
 
     1,3-5,8
     """
-
     selected = set()
 
     items = selection.split(",")
@@ -93,6 +92,10 @@ def parse_selection(selection, total_items):
 
             start = int(start)
             end = int(end)
+
+            if start > end:
+
+                start, end = end, start
 
             for i in range(
                 start,
@@ -153,6 +156,14 @@ def select_queries(queries):
         "Scelta: "
     ).strip()
 
+    if not selection:
+
+        print(
+            "Nessuna selezione."
+        )
+
+
+
     if selection.upper() == "ALL":
 
         return queries
@@ -179,6 +190,7 @@ def select_queries(queries):
 
         return []
     
+
 def show_query_details(
     queries
 ):

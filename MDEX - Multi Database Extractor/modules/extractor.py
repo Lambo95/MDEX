@@ -1,7 +1,6 @@
 import os
 import csv
 import time
-import traceback
 from datetime import datetime
 
 from openpyxl import Workbook
@@ -43,7 +42,12 @@ def get_output_file(
 
     extension = output_format.lower()
 
-    if extraction_mode == "DAILY_FILES":
+    if (
+        extraction_mode
+        .strip()
+        .upper()
+        == "DAILY_FILES"
+    ):
 
         filename = (
             f"{query_name}_{day_label}."
@@ -68,14 +72,23 @@ def read_sql_file(sql_file):
     """
     Legge il contenuto del file SQL.
     """
-
     with open(
         sql_file,
         "r",
         encoding="utf-8"
     ) as file:
 
-        return file.read()
+        sql = file.read().strip()
+
+    if sql.endswith(";"):
+
+        sql = sql[:-1]
+
+    if sql.endswith("/"):
+
+        sql = sql[:-1]
+
+    return sql.strip()
 
 def execute_query(
     conn,
@@ -86,12 +99,16 @@ def execute_query(
     fetch_size
 ):
     """
-    Esegue una query.
+        Esegue una query.
     """
-
     cursor = conn.cursor()
 
     cursor.arraysize = fetch_size
+
+    if db_type == "ORACLE":
+
+        # 600000 ms = 10 minuti
+        cursor.call_timeout = 200000
 
     try:
 
@@ -175,19 +192,30 @@ def export_xlsx(
     output_file,
     fetch_size
 ):
+    """
+    Esporta i dati in formato XLSX.
 
-    wb = Workbook()
+    Utilizza la modalità write_only per
+    ridurre il consumo di memoria durante
+    l'esportazione di dataset molto grandi.
+    """
 
-    ws = wb.active
+    wb = Workbook(
+        write_only=True
+    )
 
-    ws.title = "Data"
+    ws = wb.create_sheet(
+        title="Data"
+    )
 
     columns = [
         col[0]
         for col in cursor.description
     ]
 
-    ws.append(columns)
+    ws.append(
+        columns
+    )
 
     total_rows = 0
 
@@ -206,11 +234,13 @@ def export_xlsx(
                 list(row)
             )
 
-        total_rows += len(rows)
+        total_rows += len(
+            rows
+        )
 
-    ws.auto_filter.ref = ws.dimensions
-
-    wb.save(output_file)
+    wb.save(
+        output_file
+    )
 
     return total_rows
 
@@ -311,7 +341,7 @@ def extract_query(
             "name": query["name"],
             "status": "SKIPPED",
             "rows": 0,
-            "elapsed": 0,
+            "elapsed": 0.0,
             "file": output_file,
             "error": ""
         }

@@ -1,5 +1,47 @@
 import csv
 import os
+import re
+
+def discover_output_queries(
+    output_folder
+):
+    """
+    Scopre tutte le query
+    presenti nella cartella output.
+    """
+
+    queries = []
+
+    if not os.path.exists(
+        output_folder
+    ):
+        return queries
+
+    for name in os.listdir(
+        output_folder
+    ):
+
+        full_path = os.path.join(
+            output_folder,
+            name
+        )
+
+        if os.path.isdir(
+            full_path
+        ):
+
+            queries.append(
+                {
+                    "name": name,
+                    "folder": full_path
+                }
+            )
+
+    queries.sort(
+        key=lambda q: q["name"]
+    )
+
+    return queries
 
 
 def merge_csv_files(
@@ -41,6 +83,9 @@ def merge_csv_files(
                     None
                 )
 
+                if header is None:
+                    continue
+
                 if first_file:
 
                     writer.writerow(
@@ -59,13 +104,16 @@ def merge_csv_files(
 
     return total_rows
 
-import re
-
 
 def group_files_by_day(
     query_folder
 ):
 
+    if not os.path.exists(
+        query_folder
+    ):
+        return {}
+    
     groups = {}
 
     pattern = re.compile(
@@ -103,6 +151,7 @@ def group_files_by_day(
         )
 
     return groups
+
 
 def consolidate_daily_files(
     query_folder

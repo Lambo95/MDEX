@@ -27,6 +27,12 @@ def calculate_summary(results):
         if r["status"] == "KO"
     )
 
+    skipped_count = sum(
+        1
+        for r in results
+        if r["status"] == "SKIPPED"
+    )
+
     total_rows = sum(
         r["rows"]
         for r in results
@@ -44,6 +50,7 @@ def calculate_summary(results):
         "total_queries": total_queries,
         "ok_count": ok_count,
         "ko_count": ko_count,
+        "skipped_count": skipped_count,
         "total_rows": total_rows,
         "total_time": total_time
     }
@@ -51,7 +58,7 @@ def calculate_summary(results):
 def generate_report_name():
 
     return datetime.now().strftime(
-        "%Y%m%d_%H%M%S"
+        "%Y%m%d_%H%M%S_%f"
     )
 
 def generate_txt_report(
@@ -160,6 +167,11 @@ def generate_txt_report(
         )
 
         file.write(
+            f"SKIPPED      : "
+            f"{summary['skipped_count']}\n"
+        )
+
+        file.write(
             f"Totale Righe : "
             f"{summary['total_rows']}\n"
         )
@@ -254,6 +266,13 @@ def generate_xlsx_report(
 
     ws.append(
         [
+            "SKIPPED",
+            summary["skipped_count"]
+        ]
+    )
+
+    ws.append(
+        [
             "TOTAL_ROWS",
             summary["total_rows"]
         ]
@@ -295,10 +314,10 @@ def print_summary(
     print()
 
     print(
-        f"{'QUERY':20}"
-        f"{'RIGHE':15}"
-        f"{'TEMPO':15}"
-        f"{'ESITO':10}"
+        f"{'QUERY':30}"
+        f"{'RIGHE':12}"
+        f"{'TEMPO':12}"
+        f"{'ESITO':12}"
     )
 
     print("-" * 70)
@@ -306,10 +325,10 @@ def print_summary(
     for result in results:
 
         print(
-            f"{result['name']:20}"
-            f"{result['rows']:15}"
-            f"{str(result['elapsed']) + ' s':15}"
-            f"{result['status']:10}"
+            f"{result['name']:<35}"
+            f"{result['rows']:>10,d}"
+            f"{result['elapsed']:>12.2f} s"
+            f"{result['status']:>12}"
         )
 
     print("-" * 70)
@@ -327,6 +346,11 @@ def print_summary(
     print(
         f"KO           : "
         f"{summary['ko_count']}"
+    )
+
+    print(
+        f"SKIPPED      : "
+        f"{summary['skipped_count']}"
     )
 
     print(

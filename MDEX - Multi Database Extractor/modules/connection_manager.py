@@ -12,7 +12,10 @@ def create_connection(config):
     Factory di connessione.
     """
 
-    db_type = config["db_type"].upper()
+    db_type = config.get(
+        "db_type",
+        ""
+    ).upper()
 
     if db_type == "ORACLE":
 
@@ -64,8 +67,13 @@ def connect_sqlserver(config):
         "Apertura connessione SQL Server"
     )
 
+    driver = config.get(
+        "sql_driver",
+        "ODBC Driver 17 for SQL Server"
+    )
+
     conn_string = (
-        "DRIVER={ODBC Driver 17 for SQL Server};"
+        f"DRIVER={{{driver}}};"
         f"SERVER={config['host']},{config['port']};"
         f"DATABASE={config['database']};"
         f"UID={config['user']};"
@@ -74,7 +82,8 @@ def connect_sqlserver(config):
     )
 
     conn = pyodbc.connect(
-        conn_string
+        conn_string,
+        timeout=30
     )
 
     logger.info(
